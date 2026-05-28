@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ReservaModule } from './reserva/reserva.module';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ReservaModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
