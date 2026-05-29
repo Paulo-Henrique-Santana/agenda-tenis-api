@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { Prisma } from '../../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservaDto } from './dto/create-reserva.dto';
 
 const WEEKDAYS = [
@@ -22,7 +24,10 @@ export class ReservaService {
   private readonly logger = new Logger(ReservaService.name);
   private readonly transporter: nodemailer.Transporter;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.getOrThrow<string>('SMTP_HOST'),
       port: this.config.get<number>('SMTP_PORT', 587),
@@ -31,6 +36,12 @@ export class ReservaService {
         user: this.config.getOrThrow<string>('SMTP_USER'),
         pass: this.config.getOrThrow<string>('SMTP_PASS'),
       },
+    });
+  }
+
+  async findAll() {
+    return this.prisma.emailLog.findMany({
+      orderBy: { sentAt: 'desc' },
     });
   }
 
@@ -51,6 +62,14 @@ export class ReservaService {
       this.logger.log(
         `Reserva enviada para ${recipient} (solicitante: ${dto.name})`,
       );
+
+      await this.prisma.emailLog.create({
+        data: {
+          name: dto.name,
+          cpf: dto.cpf,
+          slots: dto.slots as unknown as Prisma.InputJsonValue,
+        },
+      });
     } catch (error) {
       this.logger.error('Falha ao enviar e-mail de reserva', error);
       throw new InternalServerErrorException(
